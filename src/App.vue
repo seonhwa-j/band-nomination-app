@@ -47,30 +47,28 @@ const addCommentAsCurrentMember = (songId: string, text: string) => {
     <main class="app-main">
       <section class="hero-panel">
         <p class="eyebrow">Nominees List</p>
-        <h1>2026 외부공연 선곡</h1>
-        <p>엑셀에서 가져온 53곡을 파트 슬롯 기준으로 투표하고, ACTIVE 곡을 바로 확인합니다.</p>
+        <h1>Static Stereo 선곡</h1>
+        <p>AGREE가 많은 곡부터 정렬되고, 파트 슬롯이 모두 채워지면 ACTIVE로 전환됩니다.</p>
         <div class="hero-stats">
-          <span><b>{{ nomination.stats.value.active }}</b> ACTIVE</span>
-          <span><b>{{ nomination.stats.value.pending }}</b> PENDING</span>
+          <span
+            ><b>{{ nomination.stats.value.active }}</b> ACTIVE</span
+          >
+          <span
+            ><b>{{ nomination.stats.value.pending }}</b> PENDING</span
+          >
         </div>
       </section>
 
       <section class="list-toolbar">
         <div class="segmented-control" aria-label="상태 필터">
-          <button
-            v-for="filter in ['ALL', 'ACTIVE', 'PENDING']"
-            :key="filter"
-            type="button"
-            :class="{ 'is-active': nomination.activeFilter.value === filter }"
-            @click="nomination.activeFilter.value = filter as 'ALL' | 'ACTIVE' | 'PENDING'"
-          >
+          <button v-for="filter in ['ALL', 'ACTIVE', 'PENDING']" :key="filter" type="button" :class="{ 'is-active': nomination.activeFilter.value === filter }" @click="nomination.activeFilter.value = filter as 'ALL' | 'ACTIVE' | 'PENDING'">
             {{ filter }}
           </button>
         </div>
         <input v-model="nomination.query.value" class="search-input" placeholder="곡 또는 가수 검색" />
       </section>
 
-      <section class="song-list" aria-label="추천곡 목록">
+      <TransitionGroup name="song-sort" tag="section" class="song-list" aria-label="추천곡 목록">
         <SongCard
           v-for="song in nomination.filteredSongs.value"
           :key="song.id"
@@ -84,7 +82,7 @@ const addCommentAsCurrentMember = (songId: string, text: string) => {
           @update-comment="nomination.updateComment"
           @delete-comment="nomination.deleteComment"
         />
-      </section>
+      </TransitionGroup>
     </main>
 
     <button class="fab" type="button" aria-label="곡 추가" @click="addPanelOpen = true">+</button>

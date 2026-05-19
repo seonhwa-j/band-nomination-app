@@ -33,7 +33,7 @@ const submit = () => {
         <span></span>
         <span></span>
       </div>
-      <p class="eyebrow">2026 외부공연 선곡</p>
+      <p class="eyebrow">Static Stereo 선곡</p>
       <h1>NOMINATION</h1>
       <form class="gate-form" @submit.prevent="submit">
         <label>
@@ -43,9 +43,7 @@ const submit = () => {
         <label>
           <span>닉네임</span>
           <select v-model="memberId">
-            <option v-for="member in members" :key="member.id" :value="member.id">
-              {{ member.name }} · {{ member.role }}
-            </option>
+            <option v-for="member in members" :key="member.id" :value="member.id">{{ member.name }} · {{ member.role }}</option>
           </select>
         </label>
         <p v-if="error" class="form-error">{{ error }}</p>

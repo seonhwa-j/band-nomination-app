@@ -1,6 +1,7 @@
 import { computed, ref } from "vue";
 import { mockComments } from "../data/mockComments";
 import { mockSongs } from "../data/mockSongs";
+import { positiveVotes } from "../data/voteOptions";
 import { evaluateActiveStatus } from "../utils/activeRules";
 import type { SongComment } from "../types/comment";
 import type { Song } from "../types/song";
@@ -15,10 +16,12 @@ export const useNomination = () => {
   const decoratedSongs = computed(() =>
     songs.value.map((song) => {
       const check = evaluateActiveStatus(song.votes);
+      const agreeScore = Object.values(song.votes).filter((vote) => positiveVotes.includes(vote)).length;
       return {
         ...song,
         status: check.active ? "ACTIVE" : song.status,
         activeCheck: check,
+        agreeScore,
       };
     }),
   );
@@ -26,11 +29,17 @@ export const useNomination = () => {
   const filteredSongs = computed(() => {
     const keyword = query.value.trim().toLowerCase();
 
-    return decoratedSongs.value.filter((song) => {
-      const matchesStatus = activeFilter.value === "ALL" || song.status === activeFilter.value;
-      const matchesQuery = !keyword || `${song.title} ${song.artist}`.toLowerCase().includes(keyword);
-      return matchesStatus && matchesQuery;
-    });
+    return decoratedSongs.value
+      .filter((song) => {
+        const matchesStatus = activeFilter.value === "ALL" || song.status === activeFilter.value;
+        const matchesQuery = !keyword || `${song.title} ${song.artist}`.toLowerCase().includes(keyword);
+        return matchesStatus && matchesQuery;
+      })
+      .sort((a, b) => {
+        if (b.agreeScore !== a.agreeScore) return b.agreeScore - a.agreeScore;
+        if (a.status !== b.status) return a.status === "ACTIVE" ? -1 : 1;
+        return a.title.localeCompare(b.title, "ko");
+      });
   });
 
   const stats = computed(() => {

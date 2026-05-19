@@ -11,4 +11,5 @@ export type Song = {
   note?: string | null;
   extraNote?: string | null;
   votes: RoleVotes;
+  agreeScore?: number;
 };

@@ -35,7 +35,7 @@ const status = computed(() => (activeCheck.value.active ? "ACTIVE" : props.song.
   <article class="song-card" :class="{ 'song-card--active': status === 'ACTIVE', 'is-expanded': expanded }">
     <button class="song-card__summary" type="button" @click="$emit('toggle', song.id)">
       <span class="song-thumb" :class="{ 'has-link': isYouTubeUrl(song.youtubeLink) }">
-        <span aria-hidden="true">▶</span>
+        <span aria-hidden="true">Play</span>
       </span>
       <span class="song-card__main">
         <strong>{{ song.title }}</strong>
@@ -49,7 +49,7 @@ const status = computed(() => (activeCheck.value.active ? "ACTIVE" : props.song.
 
     <div class="song-card__meta">
       <SongVoteSummary :votes="song.votes" />
-      <span>{{ activeCheck.completed }}/{{ activeCheck.required }} slots</span>
+      <span>AGREE {{ song.agreeScore ?? 0 }} · {{ activeCheck.completed }}/{{ activeCheck.required }} slots</span>
     </div>
 
     <section v-if="expanded" class="song-detail">
