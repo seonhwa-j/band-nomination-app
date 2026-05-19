@@ -16,7 +16,7 @@ const submit = () => {
 
 <template>
   <form class="comment-composer" @submit.prevent="submit">
-    <input v-model="text" placeholder="댓글을 입력하세요" />
+    <input v-model="text" placeholder="의견을 입력하세요" />
     <button type="submit">POST</button>
   </form>
 </template>

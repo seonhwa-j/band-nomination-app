@@ -7,7 +7,9 @@ import SongStatusBadge from "./SongStatusBadge.vue";
 import SongVoteSummary from "./SongVoteSummary.vue";
 import YouTubePreview from "./YouTubePreview.vue";
 import { evaluateActiveStatus } from "../../utils/activeRules";
+import { formatUnvotedSummary } from "../../utils/unvotedFilters";
 import { isYouTubeUrl } from "../../utils/youtube";
+import type { BandPart } from "../../types/member";
 import type { SongComment } from "../../types/comment";
 import type { Song } from "../../types/song";
 import type { RoleVoteKey, VoteType } from "../../types/vote";
@@ -17,18 +19,23 @@ const props = defineProps<{
   expanded: boolean;
   comments: SongComment[];
   currentUserId: string;
+  currentPart: BandPart;
 }>();
 
 defineEmits<{
   toggle: [songId: string];
   vote: [songId: string, key: RoleVoteKey, vote: VoteType];
+  editSong: [song: Song];
+  deleteSong: [songId: string];
   addComment: [songId: string, text: string];
   updateComment: [commentId: string, text: string];
   deleteComment: [commentId: string];
 }>();
 
 const activeCheck = computed(() => evaluateActiveStatus(props.song.votes));
-const status = computed(() => (activeCheck.value.active ? "ACTIVE" : props.song.status));
+const status = computed(() => (activeCheck.value.active ? "ACTIVE" : "PENDING"));
+const unvotedSummary = computed(() => (status.value === "PENDING" ? formatUnvotedSummary(props.song) : ""));
+const canManageSong = computed(() => props.song.createdBy === props.currentUserId);
 </script>
 
 <template>
@@ -40,36 +47,36 @@ const status = computed(() => (activeCheck.value.active ? "ACTIVE" : props.song.
       <span class="song-card__main">
         <strong>{{ song.title }}</strong>
         <small>{{ song.artist }}</small>
+        <em v-if="unvotedSummary">{{ unvotedSummary }}</em>
       </span>
       <span class="song-card__side">
         <SongStatusBadge :status="status" />
-        <span class="chevron" aria-hidden="true">{{ expanded ? "⌃" : "⌄" }}</span>
+        <span class="chevron" aria-hidden="true">{{ expanded ? "↑" : "↓" }}</span>
       </span>
     </button>
 
     <div class="song-card__meta">
       <SongVoteSummary :votes="song.votes" />
-      <span>AGREE {{ song.agreeScore ?? 0 }} · {{ activeCheck.completed }}/{{ activeCheck.required }} slots</span>
+      <span>AGREE {{ song.agreeScore ?? 0 }} · {{ activeCheck.completed }}/{{ activeCheck.required }} parts</span>
     </div>
 
     <section v-if="expanded" class="song-detail">
       <YouTubePreview :link="song.youtubeLink" />
       <a v-if="isYouTubeUrl(song.youtubeLink)" class="youtube-link" :href="song.youtubeLink" target="_blank" rel="noreferrer">
-        YouTube Link
+        YouTube에서 열기
       </a>
 
-      <div v-if="song.note || song.extraNote" class="song-note">
-        <strong>난상토론</strong>
-        <p v-if="song.note">{{ song.note }}</p>
-        <p v-if="song.extraNote">{{ song.extraNote }}</p>
-      </div>
-
       <div v-if="activeCheck.missing.length" class="missing-slots">
-        <strong>남은 슬롯</strong>
+        <strong>대기 파트</strong>
         <span v-for="slot in activeCheck.missing" :key="slot">{{ slot }}</span>
       </div>
 
-      <VoteRoleGrid :song-id="song.id" :votes="song.votes" @change="(...args) => $emit('vote', ...args)" />
+      <div v-if="canManageSong" class="song-actions">
+        <button type="button" @click="$emit('editSong', song)">수정</button>
+        <button type="button" @click="$emit('deleteSong', song.id)">삭제</button>
+      </div>
+
+      <VoteRoleGrid :song-id="song.id" :votes="song.votes" :current-part="currentPart" @change="(...args) => $emit('vote', ...args)" />
       <CommentTimeline
         :comments="comments"
         :current-user-id="currentUserId"

@@ -32,6 +32,7 @@ create table public.comments (
   id uuid primary key default gen_random_uuid(),
   song_id uuid not null references public.songs(id) on delete cascade,
   user_id text not null references public.users(id),
+  user_part text not null default '',
   text text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz

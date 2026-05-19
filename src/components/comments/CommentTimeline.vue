@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { members } from "../../data/members";
 import type { SongComment } from "../../types/comment";
 
 const props = defineProps<{
@@ -20,8 +19,18 @@ const sortedComments = computed(() =>
   [...props.comments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
 );
 
-const getMember = (id: string) => members.find((member) => member.id === id) ?? members[0];
-const formatTime = (value: string) => new Intl.RelativeTimeFormat("ko", { numeric: "auto" }).format(Math.round((new Date(value).getTime() - Date.now()) / 60000), "minute");
+const getAvatar = (comment: SongComment) =>
+  comment.userName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+const formatTime = (value: string) => {
+  const diffMinutes = Math.round((new Date(value).getTime() - Date.now()) / 60000);
+  return new Intl.RelativeTimeFormat("ko", { numeric: "auto" }).format(diffMinutes, "minute");
+};
 
 const startEdit = (comment: SongComment) => {
   editingId.value = comment.id;
@@ -40,10 +49,10 @@ const saveEdit = (commentId: string) => {
     <h3>Discussion Timeline</h3>
     <p v-if="!sortedComments.length" class="empty-note">아직 의견이 없습니다.</p>
     <article v-for="comment in sortedComments" :key="comment.id" class="comment-item">
-      <span class="avatar">{{ getMember(comment.userId).avatar }}</span>
+      <span class="avatar">{{ getAvatar(comment) }}</span>
       <div class="comment-item__body">
         <div class="comment-item__meta">
-          <strong>{{ getMember(comment.userId).name }}</strong>
+          <strong>{{ comment.userName }} · {{ comment.userPart }}</strong>
           <time>{{ formatTime(comment.createdAt) }}</time>
         </div>
         <div v-if="editingId === comment.id" class="comment-edit">

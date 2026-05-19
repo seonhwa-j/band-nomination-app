@@ -3,14 +3,30 @@ import { mockComments } from "../data/mockComments";
 import { mockSongs } from "../data/mockSongs";
 import { positiveVotes } from "../data/voteOptions";
 import { evaluateActiveStatus } from "../utils/activeRules";
+import { getUnvotedFilterCounts, isSongUnvotedForFilter, type UnvotedFilterKey } from "../utils/unvotedFilters";
+import type { AuthUser } from "../types/member";
 import type { SongComment } from "../types/comment";
 import type { Song } from "../types/song";
 import type { RoleVoteKey, VoteType } from "../types/vote";
+
+const emptyVotes = (): Song["votes"] => ({
+  vocal: "NONE",
+  drum: "NONE",
+  bass: "NONE",
+  devilGuitar1: "NONE",
+  devilGuitar2: "NONE",
+  sunnyGuitar1: "NONE",
+  sunnyGuitar2: "NONE",
+  seulKeyboard1: "NONE",
+  lilacKeyboard2: "NONE",
+  lilacChorus: "NONE",
+});
 
 export const useNomination = () => {
   const songs = ref<Song[]>(mockSongs);
   const comments = ref<SongComment[]>(mockComments);
   const activeFilter = ref<"ALL" | "ACTIVE" | "PENDING">("ALL");
+  const unvotedFilter = ref<UnvotedFilterKey>("ALL");
   const query = ref("");
 
   const decoratedSongs = computed(() =>
@@ -19,7 +35,7 @@ export const useNomination = () => {
       const agreeScore = Object.values(song.votes).filter((vote) => positiveVotes.includes(vote)).length;
       return {
         ...song,
-        status: check.active ? "ACTIVE" : song.status,
+        status: check.active ? ("ACTIVE" as const) : ("PENDING" as const),
         activeCheck: check,
         agreeScore,
       };
@@ -32,8 +48,9 @@ export const useNomination = () => {
     return decoratedSongs.value
       .filter((song) => {
         const matchesStatus = activeFilter.value === "ALL" || song.status === activeFilter.value;
+        const matchesUnvoted = unvotedFilter.value === "ALL" || isSongUnvotedForFilter(song, unvotedFilter.value);
         const matchesQuery = !keyword || `${song.title} ${song.artist}`.toLowerCase().includes(keyword);
-        return matchesStatus && matchesQuery;
+        return matchesStatus && matchesUnvoted && matchesQuery;
       })
       .sort((a, b) => {
         if (b.agreeScore !== a.agreeScore) return b.agreeScore - a.agreeScore;
@@ -51,6 +68,12 @@ export const useNomination = () => {
     };
   });
 
+  const unvotedCounts = computed(() => getUnvotedFilterCounts(decoratedSongs.value));
+
+  const setUnvotedFilter = (filter: UnvotedFilterKey) => {
+    unvotedFilter.value = unvotedFilter.value === filter || filter === "ALL" ? "ALL" : filter;
+  };
+
   const updateVote = (songId: string, key: RoleVoteKey, vote: VoteType) => {
     const song = songs.value.find((item) => item.id === songId);
     if (!song) return;
@@ -59,31 +82,42 @@ export const useNomination = () => {
     song.status = evaluateActiveStatus(song.votes).active ? "ACTIVE" : "PENDING";
   };
 
-  const addSong = (payload: Pick<Song, "title" | "artist" | "youtubeLink">) => {
+  const addSong = (payload: Pick<Song, "title" | "artist" | "youtubeLink">, userId: string) => {
     const song: Song = {
       id: `song-${Date.now()}`,
       status: "PENDING",
-      note: "앱에서 새로 추천한 곡",
+      createdBy: userId,
+      note: null,
       extraNote: null,
       ...payload,
-      votes: {
-        vocal: "NONE",
-        drum: "NONE",
-        bass: "NONE",
-        devilGuitar1: "NONE",
-        devilGuitar2: "NONE",
-        sunnyGuitar1: "NONE",
-        sunnyGuitar2: "NONE",
-        seulKeyboard1: "NONE",
-        lilacKeyboard2: "NONE",
-        lilacChorus: "NONE",
-      },
+      votes: emptyVotes(),
     };
 
     songs.value = [song, ...songs.value];
   };
 
-  const addComment = (songId: string, userId: string, text: string) => {
+  const updateSong = (songId: string, userId: string, payload: Pick<Song, "title" | "artist" | "youtubeLink">) => {
+    songs.value = songs.value.map((song) =>
+      song.id === songId && song.createdBy === userId
+        ? {
+            ...song,
+            title: payload.title,
+            artist: payload.artist,
+            youtubeLink: payload.youtubeLink,
+          }
+        : song,
+    );
+  };
+
+  const deleteSong = (songId: string, userId: string) => {
+    const song = songs.value.find((item) => item.id === songId);
+    if (!song || song.createdBy !== userId) return;
+
+    songs.value = songs.value.filter((item) => item.id !== songId);
+    comments.value = comments.value.filter((comment) => comment.songId !== songId);
+  };
+
+  const addComment = (songId: string, user: AuthUser, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
@@ -92,7 +126,9 @@ export const useNomination = () => {
       {
         id: `comment-${Date.now()}`,
         songId,
-        userId,
+        userId: user.id,
+        userName: user.name,
+        userPart: user.role,
         text: trimmed,
         createdAt: new Date().toISOString(),
       },
@@ -115,10 +151,15 @@ export const useNomination = () => {
     songs,
     filteredSongs,
     activeFilter,
+    unvotedFilter,
+    unvotedCounts,
     query,
     stats,
+    setUnvotedFilter,
     updateVote,
     addSong,
+    updateSong,
+    deleteSong,
     addComment,
     updateComment,
     deleteComment,

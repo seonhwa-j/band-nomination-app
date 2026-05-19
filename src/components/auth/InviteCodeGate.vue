@@ -1,27 +1,33 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { Member } from "../../types/member";
+import type { BandPart, Member } from "../../types/member";
 
 defineProps<{
   members: Member[];
 }>();
 
 const emit = defineEmits<{
-  enter: [code: string, memberId: string];
+  enter: [code: string, payload: { part: BandPart }];
 }>();
 
-const code = ref("NOMINATION2026");
-const memberId = ref("vocal");
+const code = ref("");
+const part = ref<BandPart>("vocal");
+const step = ref<"code" | "profile">("code");
 const error = ref("");
+
+const verifyCode = () => {
+  error.value = "";
+  const expectedCode = import.meta.env.VITE_INVITE_CODE || "STATICSTEREO2026";
+  if (code.value.trim() !== expectedCode) {
+    error.value = "초대 코드를 다시 확인해 주세요.";
+    return;
+  }
+  step.value = "profile";
+};
 
 const submit = () => {
   error.value = "";
-  emit("enter", code.value, memberId.value);
-  window.setTimeout(() => {
-    if (!localStorage.getItem("nomination-member")) {
-      error.value = "초대코드를 다시 확인해주세요.";
-    }
-  }, 80);
+  emit("enter", code.value, { part: part.value });
 };
 </script>
 
@@ -33,21 +39,27 @@ const submit = () => {
         <span></span>
         <span></span>
       </div>
-      <p class="eyebrow">Static Stereo 선곡</p>
+      <p class="eyebrow">Static Stereo 선곡장</p>
       <h1>NOMINATION</h1>
-      <form class="gate-form" @submit.prevent="submit">
+
+      <form v-if="step === 'code'" class="gate-form" @submit.prevent="verifyCode">
         <label>
-          <span>초대코드</span>
-          <input v-model="code" autocomplete="off" />
+          <span>초대 코드</span>
+          <input v-model="code" autocomplete="off" placeholder="초대 코드를 입력하세요" />
         </label>
+        <p v-if="error" class="form-error">{{ error }}</p>
+        <button class="primary-action" type="submit">다음</button>
+      </form>
+
+      <form v-else class="gate-form" @submit.prevent="submit">
         <label>
-          <span>닉네임</span>
-          <select v-model="memberId">
+          <span>파트</span>
+          <select v-model="part">
             <option v-for="member in members" :key="member.id" :value="member.id">{{ member.name }} · {{ member.role }}</option>
           </select>
         </label>
         <p v-if="error" class="form-error">{{ error }}</p>
-        <button class="primary-action" type="submit">입장하기</button>
+        <button class="primary-action" type="submit">시작하기</button>
       </form>
     </section>
   </main>

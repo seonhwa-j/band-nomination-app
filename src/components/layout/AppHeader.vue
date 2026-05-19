@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Member } from "../../types/member";
+import type { AuthUser } from "../../types/member";
 
 defineProps<{
-  member: Member;
+  member: AuthUser;
   stats: {
     total: number;
     active: number;
@@ -23,7 +23,7 @@ defineEmits<{
       <span></span>
     </div>
     <div class="app-header__title">
-      <strong>BAND NOMINATION</strong>
+      <strong>Static Stereo</strong>
       <span>{{ stats.active }} active / {{ stats.total }} songs</span>
     </div>
     <button class="member-button" type="button" @click="$emit('leave')" :aria-label="`${member.name} 로그아웃`">

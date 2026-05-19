@@ -57,9 +57,7 @@ a {
 .app-shell {
   min-height: 100vh;
   padding-bottom: 96px;
-  background:
-    radial-gradient(circle at 50% -20%, rgba(136, 169, 150, 0.12), transparent 340px),
-    var(--bg);
+  background: var(--bg);
 }
 
 .app-header {
@@ -217,9 +215,91 @@ a {
 }
 
 .list-toolbar {
+  position: sticky;
+  top: 64px;
+  z-index: 15;
   display: grid;
   gap: 10px;
   margin: 12px 0 14px;
+  padding: 10px 0 0;
+  background: var(--bg);
+}
+
+.sticky-controls {
+  position: sticky;
+  top: 64px;
+  z-index: 15;
+  margin: 12px 0 14px;
+  padding-top: 1px;
+  background: var(--bg);
+
+  .list-toolbar {
+    position: static;
+    margin: 0 0 10px;
+    padding-top: 0;
+  }
+}
+
+.filter-bar {
+  position: sticky;
+  top: 64px;
+  z-index: 15;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -14px 14px;
+  padding: 0 14px 4px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.filter-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: var(--detail);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    color 0.22s ease,
+    background 0.22s ease;
+
+  b {
+    display: grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    padding: 0 5px;
+    color: #121212;
+    background: var(--neutral);
+    font-size: 11px;
+  }
+
+  &.is-active {
+    color: var(--text);
+    border-color: rgba(136, 169, 150, 0.64);
+    background: rgba(136, 169, 150, 0.1);
+    box-shadow: 0 0 0 3px rgba(136, 169, 150, 0.1);
+  }
+}
+
+.filter-chip__icon {
+  color: var(--active);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .segmented-control {
@@ -359,6 +439,16 @@ a {
   small {
     color: var(--muted);
     font-size: 13px;
+  }
+
+  em {
+    overflow: hidden;
+    color: var(--cautious);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -542,6 +632,10 @@ a {
   border: 0;
   background: transparent;
   padding: 0;
+
+  &:disabled {
+    cursor: default;
+  }
 }
 
 .role-vote__menu {
@@ -662,6 +756,40 @@ a {
     border: 0;
     background: transparent;
     color: var(--active);
+    font-size: 12px;
+    font-weight: 800;
+  }
+}
+
+.comment-edit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 6px;
+
+  button {
+    min-width: 64px;
+    border: 1px solid rgba(136, 169, 150, 0.42);
+    border-radius: var(--radius);
+    color: #121212;
+    background: var(--active);
+    font-size: 12px;
+    font-weight: 900;
+  }
+}
+
+.song-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  button {
+    min-height: 34px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0 10px;
+    color: var(--text);
+    background: #202020;
     font-size: 12px;
     font-weight: 800;
   }

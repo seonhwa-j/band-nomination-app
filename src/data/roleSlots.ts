@@ -1,20 +1,21 @@
+import type { BandPart } from "../types/member";
 import type { RoleVoteKey } from "../types/vote";
 
 export const roleVoteMeta: Array<{
   key: RoleVoteKey;
-  memberId: string;
+  memberId: BandPart;
   memberName: string;
   roleName: string;
   compact: string;
 }> = [
-  { key: "vocal", memberId: "vocal", memberName: "보컬", roleName: "보컬", compact: "Vocal" },
-  { key: "drum", memberId: "drum", memberName: "드럼", roleName: "드럼", compact: "Drum" },
-  { key: "bass", memberId: "bass", memberName: "베이스", roleName: "베이스", compact: "Bass" },
-  { key: "devilGuitar1", memberId: "devil", memberName: "앙마", roleName: "기타1", compact: "앙 G1" },
-  { key: "devilGuitar2", memberId: "devil", memberName: "앙마", roleName: "기타2", compact: "앙 G2" },
-  { key: "sunnyGuitar1", memberId: "sunny", memberName: "싸니", roleName: "기타1", compact: "싸 G1" },
-  { key: "sunnyGuitar2", memberId: "sunny", memberName: "싸니", roleName: "기타2", compact: "싸 G2" },
-  { key: "seulKeyboard1", memberId: "seul", memberName: "슬이", roleName: "키보드1", compact: "Key1" },
-  { key: "lilacKeyboard2", memberId: "lilac", memberName: "라일락", roleName: "키보드2", compact: "Key2" },
-  { key: "lilacChorus", memberId: "lilac", memberName: "라일락", roleName: "코러스", compact: "Cho" },
+  { key: "vocal", memberId: "vocal", memberName: "묘묘", roleName: "보컬", compact: "VO" },
+  { key: "drum", memberId: "drum", memberName: "제제", roleName: "드럼", compact: "DR" },
+  { key: "bass", memberId: "bass", memberName: "삼베", roleName: "베이스", compact: "BA" },
+  { key: "devilGuitar1", memberId: "devil", memberName: "앙마", roleName: "기타 1", compact: "AG1" },
+  { key: "devilGuitar2", memberId: "devil", memberName: "앙마", roleName: "기타 2", compact: "AG2" },
+  { key: "sunnyGuitar1", memberId: "sunny", memberName: "사니", roleName: "기타 1", compact: "SN1" },
+  { key: "sunnyGuitar2", memberId: "sunny", memberName: "사니", roleName: "기타 2", compact: "SN2" },
+  { key: "seulKeyboard1", memberId: "keyboard", memberName: "슬이", roleName: "건반 1", compact: "K1" },
+  { key: "lilacKeyboard2", memberId: "keyboard", memberName: "라일락", roleName: "건반 2", compact: "K2" },
+  { key: "lilacChorus", memberId: "chorus", memberName: "라일락", roleName: "코러스", compact: "CH" },
 ];

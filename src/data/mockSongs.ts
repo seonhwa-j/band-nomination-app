@@ -25,6 +25,7 @@ export const mockSongs: Song[] = importedSongs.map((song) => {
     title: song.title,
     youtubeLink: song.youtubeLink,
     status: song.status as Song["status"],
+    createdBy: null,
     note: song.note,
     extraNote: song.extraNote,
     votes,

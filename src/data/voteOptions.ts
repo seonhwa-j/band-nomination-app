@@ -7,12 +7,12 @@ export const voteOptions: Array<{
   emoji: string;
   tone: string;
 }> = [
-  { type: "LIKES", label: "좋아요", shortLabel: "Like", emoji: "👍", tone: "agree" },
-  { type: "AGREE", label: "해봐요", shortLabel: "Try", emoji: "👌", tone: "agree" },
-  { type: "MEH", label: "애매해", shortLabel: "Meh", emoji: "😐", tone: "cautious" },
-  { type: "THINK", label: "시간줘", shortLabel: "Think", emoji: "🤔", tone: "cautious" },
-  { type: "CANNOT", label: "못해요", shortLabel: "No", emoji: "❌", tone: "neutral" },
-  { type: "NONE", label: "없음", shortLabel: "None", emoji: "🤷", tone: "neutral" },
+  { type: "LIKES", label: "좋아요", shortLabel: "Like", emoji: "♥", tone: "agree" },
+  { type: "AGREE", label: "해봐요", shortLabel: "Try", emoji: "✓", tone: "agree" },
+  { type: "MEH", label: "애매해", shortLabel: "Meh", emoji: "?", tone: "cautious" },
+  { type: "THINK", label: "시간줘", shortLabel: "Think", emoji: "...", tone: "cautious" },
+  { type: "CANNOT", label: "못해요", shortLabel: "No", emoji: "×", tone: "neutral" },
+  { type: "NONE", label: "없음", shortLabel: "None", emoji: "-", tone: "neutral" },
 ];
 
 export const voteLabelToType = (label: VoteLabel | null | undefined): VoteType => {

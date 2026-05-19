@@ -16,12 +16,4 @@ export type RoleVoteKey =
 
 export type RoleVotes = Record<RoleVoteKey, VoteType>;
 
-export type RoleSlot =
-  | "vocal"
-  | "drum"
-  | "bass"
-  | "guitar1"
-  | "guitar2"
-  | "keyboard1"
-  | "keyboard2"
-  | "chorus";
+export type RoleSlot = "vocal" | "drum" | "bass" | "guitar1" | "guitar2" | "keyboard1" | "keyboard2" | "chorus";
