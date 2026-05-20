@@ -100,7 +100,6 @@ export const useNomination = () => {
   };
 
   onMounted(() => {
-    if (supabase) songs.value = [];
     loadRemoteSongs();
     subscribeToRemoteSongs();
   });
@@ -165,45 +164,82 @@ export const useNomination = () => {
     song.status = evaluateActiveStatus(song.votes).active ? "ACTIVE" : "PENDING";
   };
 
-  const addSong = async (payload: Pick<Song, "title" | "artist" | "youtubeLink">, userId: string) => {
+  const addSong = async (payload: Pick<Song, "title" | "artist" | "youtubeLink">, user: AuthUser) => {
     const createdAt = new Date().toISOString();
 
-    if (supabase) {
+    try {
+      if (!supabase) throw new Error("Supabase is not configured. Song was not saved.");
+
+      const { error: userError } = await supabase
+        .from("users")
+        .upsert({ id: user.id, username: user.name, role: user.role, profile_picture: user.avatar }, { onConflict: "id" });
+
+      if (userError) throw userError;
+
       const { data, error } = await supabase
         .from("songs")
-        .insert({ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: userId, created_at: createdAt })
+        .insert([{ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: user.id, status: "PENDING", created_at: createdAt }])
         .select("id,title,artist,youtube_link,added_by,status,note,created_at")
         .single();
 
-      if (!error && data) mergeSong(rowToSong({ ...(data as SongRow), created_at: (data as SongRow).created_at || createdAt }));
-      return;
+      if (error || !data) throw error ?? new Error("No inserted song returned from Supabase.");
+
+      mergeSong(rowToSong({ ...(data as SongRow), created_at: (data as SongRow).created_at || createdAt }));
+      return true;
+    } catch (error) {
+      const supabaseError = error as { code?: string; message?: string; details?: string; hint?: string };
+      console.error("Supabase Insert Error: ", error);
+      console.error("Supabase Insert Error Code: ", supabaseError?.code);
+      console.error("Supabase Insert Error Message: ", error instanceof Error ? error.message : supabaseError?.message);
+      console.error("Supabase Insert Error Details: ", supabaseError?.details);
+      console.error("Supabase Insert Error Hint: ", supabaseError?.hint);
+      console.error("Supabase Insert Error Type: ", error instanceof TypeError ? "Network or invalid Supabase URL" : supabaseError?.code === "23503" ? "Foreign key constraint" : supabaseError?.code === "42501" ? "RLS or permission policy" : "Database or configuration");
+      window.alert(`곡 저장에 실패했습니다.\n\n${supabaseError?.message ?? "Supabase 연결, RLS 정책, songs 테이블 설정을 확인해주세요."}\n${supabaseError?.details ?? ""}\n${supabaseError?.hint ?? ""}`);
+      return false;
     }
-
-    const song: Song = {
-      id: `song-${Date.now()}`,
-      status: "PENDING",
-      createdBy: userId,
-      createdAt,
-      note: null,
-      extraNote: null,
-      ...payload,
-      votes: emptyVotes(),
-    };
-
-    songs.value = [song, ...songs.value];
   };
 
-  const updateSong = (songId: string, userId: string, payload: Pick<Song, "title" | "artist" | "youtubeLink">) => {
-    songs.value = songs.value.map((song) =>
-      song.id === songId && song.createdBy === userId
-        ? {
-            ...song,
-            title: payload.title,
-            artist: payload.artist,
-            youtubeLink: payload.youtubeLink,
-          }
-        : song,
-    );
+  const updateSong = async (
+    songId: string,
+    userId: string,
+    payload: Pick<Song, "title" | "artist" | "youtubeLink"> & Partial<Pick<Song, "note">>,
+  ) => {
+    const song = songs.value.find((item) => item.id === songId);
+    if (!song || song.createdBy !== userId) return false;
+
+    try {
+      if (!supabase) throw new Error("Supabase is not configured. Song was not updated.");
+
+      const updatePayload: { title: string; artist: string; youtube_link: string; note?: string | null } = {
+        title: payload.title,
+        artist: payload.artist,
+        youtube_link: payload.youtubeLink,
+      };
+
+      if ("note" in payload) updatePayload.note = payload.note ?? null;
+
+      const { data, error } = await supabase
+        .from("songs")
+        .update(updatePayload)
+        .eq("id", songId)
+        .eq("added_by", userId)
+        .select("id,title,artist,youtube_link,added_by,status,note,created_at")
+        .single();
+
+      if (error || !data) throw error ?? new Error("No updated song returned from Supabase.");
+
+      mergeSong(rowToSong(data as SongRow));
+      return true;
+    } catch (error) {
+      const supabaseError = error as { code?: string; message?: string; details?: string; hint?: string };
+      console.error("Supabase Update Error: ", error);
+      console.error("Supabase Update Error Code: ", supabaseError?.code);
+      console.error("Supabase Update Error Message: ", error instanceof Error ? error.message : supabaseError?.message);
+      console.error("Supabase Update Error Details: ", supabaseError?.details);
+      console.error("Supabase Update Error Hint: ", supabaseError?.hint);
+      window.alert(`Song update failed.\n\n${supabaseError?.message ?? "Please check Supabase connection, RLS policy, and songs table settings."}\n${supabaseError?.details ?? ""}\n${supabaseError?.hint ?? ""}`);
+      return false;
+    }
   };
 
   const deleteSong = (songId: string, userId: string) => {

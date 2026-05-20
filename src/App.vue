@@ -32,7 +32,7 @@ const resetSongForm = () => {
   editingSongId.value = "";
 };
 
-const submitSong = () => {
+const submitSong = async () => {
   if (!newSong.value.title.trim() || !newSong.value.artist.trim()) return;
 
   const payload = {
@@ -44,7 +44,8 @@ const submitSong = () => {
   if (editingSongId.value) {
     nomination.updateSong(editingSongId.value, currentMemberId.value, payload);
   } else {
-    nomination.addSong(payload, currentMemberId.value);
+    const saved = await nomination.addSong(payload, currentMember.value);
+    if (!saved) return;
   }
 
   resetSongForm();
