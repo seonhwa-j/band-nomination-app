@@ -242,12 +242,29 @@ export const useNomination = () => {
     }
   };
 
-  const deleteSong = (songId: string, userId: string) => {
+  const deleteSong = async (songId: string, userId: string) => {
     const song = songs.value.find((item) => item.id === songId);
-    if (!song || song.createdBy !== userId) return;
+    if (!song || song.createdBy !== userId) return false;
 
-    songs.value = songs.value.filter((item) => item.id !== songId);
-    comments.value = comments.value.filter((comment) => comment.songId !== songId);
+    try {
+      if (!supabase) throw new Error("Supabase is not configured. Song was not deleted.");
+
+      const { error } = await supabase.from("songs").delete().eq("id", songId).eq("added_by", userId);
+      if (error) throw error;
+
+      songs.value = songs.value.filter((item) => item.id !== songId);
+      comments.value = comments.value.filter((comment) => comment.songId !== songId);
+      return true;
+    } catch (error) {
+      const supabaseError = error as { code?: string; message?: string; details?: string; hint?: string };
+      console.error("Supabase Delete Error: ", error);
+      console.error("Supabase Delete Error Code: ", supabaseError?.code);
+      console.error("Supabase Delete Error Message: ", error instanceof Error ? error.message : supabaseError?.message);
+      console.error("Supabase Delete Error Details: ", supabaseError?.details);
+      console.error("Supabase Delete Error Hint: ", supabaseError?.hint);
+      window.alert(`Song delete failed.\n\n${supabaseError?.message ?? "Please check Supabase connection, RLS policy, and songs table settings."}\n${supabaseError?.details ?? ""}\n${supabaseError?.hint ?? ""}`);
+      return false;
+    }
   };
 
   const addComment = (songId: string, user: AuthUser, text: string) => {

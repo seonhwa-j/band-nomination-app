@@ -14,13 +14,21 @@ const fallbackUser: AuthUser = {
 };
 
 const getPartMeta = (part: BandPart) => members.find((member) => member.id === part) ?? members[0];
+const getStableUserId = (part: BandPart) => part;
+
+const normalizeUser = (user: AuthUser): AuthUser => ({
+  ...user,
+  id: getStableUserId(user.part),
+});
 
 const parseStoredUser = () => {
   const stored = localStorage.getItem(storageKey);
   if (!stored) return null;
 
   try {
-    return JSON.parse(stored) as AuthUser;
+    const user = normalizeUser(JSON.parse(stored) as AuthUser);
+    localStorage.setItem(storageKey, JSON.stringify(user));
+    return user;
   } catch {
     localStorage.removeItem(storageKey);
     return null;
@@ -37,7 +45,7 @@ export const useAuth = () => {
 
     const partMeta = getPartMeta(payload.part);
     const nextUser: AuthUser = {
-      id: crypto.randomUUID?.() ?? `user-${Date.now()}`,
+      id: getStableUserId(payload.part),
       name: partMeta.name,
       part: payload.part,
       role: partMeta.role,

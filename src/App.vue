@@ -78,9 +78,9 @@ const closeSongPanel = () => {
   resetSongForm();
 };
 
-const deleteSongAsCurrentMember = (songId: string) => {
-  nomination.deleteSong(songId, currentMemberId.value);
-  if (expandedSongId.value === songId) expandedSongId.value = "";
+const deleteSongAsCurrentMember = async (songId: string) => {
+  const deleted = await nomination.deleteSong(songId, currentMemberId.value);
+  if (deleted && expandedSongId.value === songId) expandedSongId.value = "";
 };
 </script>
 
