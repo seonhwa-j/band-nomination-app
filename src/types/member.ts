@@ -13,4 +13,5 @@ export type AuthUser = {
   part: BandPart;
   role: string;
   avatar: string;
+  aliases?: string[];
 };

@@ -19,10 +19,11 @@ const props = defineProps<{
   expanded: boolean;
   comments: SongComment[];
   currentUserId: string;
+  currentUserAliases: string[];
   currentPart: BandPart;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   toggle: [songId: string];
   vote: [songId: string, key: RoleVoteKey, vote: VoteType];
   editSong: [song: Song];
@@ -35,7 +36,22 @@ defineEmits<{
 const activeCheck = computed(() => evaluateActiveStatus(props.song.votes));
 const status = computed(() => (activeCheck.value.active ? "ACTIVE" : "PENDING"));
 const unvotedSummary = computed(() => (status.value === "PENDING" ? formatUnvotedSummary(props.song) : ""));
-const canManageSong = computed(() => props.song.createdBy === props.currentUserId);
+const canManageSong = computed(() => {
+  const ownerKeys = [props.song.createdBy, ...(props.song.createdByAliases ?? [])].filter((key): key is string => Boolean(key));
+  const currentUserKeys = [props.currentUserId, ...props.currentUserAliases];
+  return ownerKeys.some((ownerKey) => currentUserKeys.includes(ownerKey));
+});
+
+const handleEdit = () => {
+  console.log("Edit song clicked:", props.song.id);
+  emit("editSong", props.song);
+};
+
+const handleDelete = () => {
+  console.log("Delete song clicked:", props.song.id);
+  if (!window.confirm("정말 삭제하시겠습니까?")) return;
+  emit("deleteSong", props.song.id);
+};
 </script>
 
 <template>
@@ -72,8 +88,8 @@ const canManageSong = computed(() => props.song.createdBy === props.currentUserI
       </div>
 
       <div v-if="canManageSong" class="song-actions">
-        <button type="button" @click="$emit('editSong', song)">수정</button>
-        <button type="button" @click="$emit('deleteSong', song.id)">삭제</button>
+        <button type="button" @click.stop="handleEdit">수정</button>
+        <button type="button" @click.stop="handleDelete">삭제</button>
       </div>
 
       <VoteRoleGrid :song-id="song.id" :votes="song.votes" :current-part="currentPart" @change="(...args) => $emit('vote', ...args)" />

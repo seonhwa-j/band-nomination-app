@@ -30,23 +30,29 @@ type SongRow = {
   artist: string;
   youtube_link: string | null;
   added_by: string | null;
+  users?: { username?: string | null; role?: string | null; profile_picture?: string | null } | { username?: string | null; role?: string | null; profile_picture?: string | null }[] | null;
   status: Song["status"];
   note: string | null;
   created_at: string | null;
 };
 
-const rowToSong = (row: SongRow): Song => ({
-  id: row.id,
-  title: row.title,
-  artist: row.artist,
-  youtubeLink: row.youtube_link || "",
-  status: row.status,
-  createdAt: row.created_at,
-  createdBy: row.added_by,
-  note: row.note,
-  extraNote: null,
-  votes: emptyVotes(),
-});
+const rowToSong = (row: SongRow): Song => {
+  const userRows = Array.isArray(row.users) ? row.users : row.users ? [row.users] : [];
+
+  return {
+    id: row.id,
+    title: row.title,
+    artist: row.artist,
+    youtubeLink: row.youtube_link || "",
+    status: row.status,
+    createdAt: row.created_at,
+    createdBy: row.added_by,
+    createdByAliases: Array.from(new Set(userRows.flatMap((user) => [user.username, user.role, user.profile_picture]).filter(Boolean) as string[])),
+    note: row.note,
+    extraNote: null,
+    votes: emptyVotes(),
+  };
+};
 
 type SortOrder = "LATEST" | "AGREE";
 
@@ -79,7 +85,7 @@ export const useNomination = () => {
   const loadRemoteSongs = async () => {
     if (!supabase) return;
 
-    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note,created_at").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note,created_at,users(username,role,profile_picture)").order("created_at", { ascending: false });
     if (error || !data) return;
 
     data.forEach((row) => mergeSong(rowToSong(row as SongRow)));
@@ -205,7 +211,7 @@ export const useNomination = () => {
     payload: Pick<Song, "title" | "artist" | "youtubeLink"> & Partial<Pick<Song, "note">>,
   ) => {
     const song = songs.value.find((item) => item.id === songId);
-    if (!song || song.createdBy !== userId) return false;
+    if (!song || !userId) return false;
 
     try {
       if (!supabase) throw new Error("Supabase is not configured. Song was not updated.");
@@ -222,13 +228,25 @@ export const useNomination = () => {
         .from("songs")
         .update(updatePayload)
         .eq("id", songId)
-        .eq("added_by", userId)
-        .select("id,title,artist,youtube_link,added_by,status,note,created_at")
+        .select("id,title,artist,youtube_link,added_by,status,note,created_at,users(username,role,profile_picture)")
         .single();
 
       if (error || !data) throw error ?? new Error("No updated song returned from Supabase.");
 
-      mergeSong(rowToSong(data as SongRow));
+      const updatedSong = rowToSong(data as SongRow);
+      songs.value = songs.value.map((item) =>
+        item.id === songId
+          ? {
+              ...item,
+              title: updatedSong.title,
+              artist: updatedSong.artist,
+              youtubeLink: updatedSong.youtubeLink,
+              note: updatedSong.note,
+              status: updatedSong.status,
+              createdAt: updatedSong.createdAt ?? item.createdAt,
+            }
+          : item,
+      );
       return true;
     } catch (error) {
       const supabaseError = error as { code?: string; message?: string; details?: string; hint?: string };
@@ -244,13 +262,14 @@ export const useNomination = () => {
 
   const deleteSong = async (songId: string, userId: string) => {
     const song = songs.value.find((item) => item.id === songId);
-    if (!song || song.createdBy !== userId) return false;
+    if (!song || !userId) return false;
 
     try {
       if (!supabase) throw new Error("Supabase is not configured. Song was not deleted.");
 
-      const { error } = await supabase.from("songs").delete().eq("id", songId).eq("added_by", userId);
+      const { data, error } = await supabase.from("songs").delete().eq("id", songId).select("id");
       if (error) throw error;
+      if (!data?.some((deletedSong) => deletedSong.id === songId)) throw new Error("No song was deleted from Supabase.");
 
       songs.value = songs.value.filter((item) => item.id !== songId);
       comments.value = comments.value.filter((comment) => comment.songId !== songId);

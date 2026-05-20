@@ -22,6 +22,20 @@ const newSong = ref({
 
 const currentMember = computed(() => auth.currentMember.value);
 const currentMemberId = computed(() => currentMember.value.id);
+const currentMemberAliases = computed(() =>
+  Array.from(
+    new Set(
+      [
+        currentMember.value.id,
+        currentMember.value.name,
+        currentMember.value.part,
+        currentMember.value.role,
+        currentMember.value.avatar,
+        ...(currentMember.value.aliases ?? []),
+      ].filter(Boolean),
+    ),
+  ),
+);
 
 const handleEnter = (code: string, payload: { part: BandPart }) => {
   auth.enter(code, payload);
@@ -62,7 +76,8 @@ const openAddSongPanel = () => {
 };
 
 const openEditSongPanel = (song: Song) => {
-  if (song.createdBy !== currentMemberId.value) return;
+  const ownerKeys = [song.createdBy, ...(song.createdByAliases ?? [])].filter((key): key is string => Boolean(key));
+  if (!ownerKeys.some((ownerKey) => currentMemberAliases.value.includes(ownerKey))) return;
 
   editingSongId.value = song.id;
   newSong.value = {
@@ -134,6 +149,7 @@ const deleteSongAsCurrentMember = async (songId: string) => {
           :expanded="expandedSongId === song.id"
           :comments="nomination.getCommentsBySong(song.id)"
           :current-user-id="currentMemberId"
+          :current-user-aliases="currentMemberAliases"
           :current-part="currentMember.part"
           @toggle="expandedSongId = expandedSongId === $event ? '' : $event"
           @vote="nomination.updateVote"

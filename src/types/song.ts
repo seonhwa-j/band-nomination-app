@@ -10,6 +10,7 @@ export type Song = {
   status: SongStatus;
   createdAt?: string | null;
   createdBy?: string | null;
+  createdByAliases?: string[];
   note?: string | null;
   extraNote?: string | null;
   votes: RoleVotes;

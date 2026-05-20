@@ -19,6 +19,7 @@ const getStableUserId = (part: BandPart) => part;
 const normalizeUser = (user: AuthUser): AuthUser => ({
   ...user,
   id: getStableUserId(user.part),
+  aliases: Array.from(new Set([...(user.aliases ?? []), user.id, user.name, user.part].filter(Boolean))),
 });
 
 const parseStoredUser = () => {
@@ -50,6 +51,7 @@ export const useAuth = () => {
       part: payload.part,
       role: partMeta.role,
       avatar: partMeta.avatar,
+      aliases: [partMeta.id, partMeta.name, partMeta.role, partMeta.avatar],
     };
 
     user.value = nextUser;
