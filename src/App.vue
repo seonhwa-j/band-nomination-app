@@ -87,7 +87,7 @@ const deleteSongAsCurrentMember = (songId: string) => {
   <InviteCodeGate v-if="!auth.entered.value" :members="auth.members" @enter="handleEnter" />
 
   <div v-else class="app-shell">
-    <AppHeader :member="currentMember" :stats="nomination.stats.value" @leave="auth.leave" />
+    <AppHeader :member="currentMember" :stats="nomination.stats.value" />
 
     <main class="app-main">
       <section class="hero-panel">
@@ -141,7 +141,7 @@ const deleteSongAsCurrentMember = (songId: string) => {
 
     <button class="fab" type="button" aria-label="곡 추가" @click="openAddSongPanel">+</button>
 
-    <div v-if="addPanelOpen" class="sheet-backdrop" @click.self="closeSongPanel">
+    <div v-if="addPanelOpen" class="sheet-backdrop">
       <section class="bottom-sheet">
         <header>
           <h2>{{ editingSongId ? "곡 수정" : "곡 추천" }}</h2>

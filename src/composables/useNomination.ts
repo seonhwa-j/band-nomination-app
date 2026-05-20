@@ -1,6 +1,8 @@
-import { computed, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { mockComments } from "../data/mockComments";
 import { mockSongs } from "../data/mockSongs";
+import { supabase } from "../lib/supabase";
 import { positiveVotes } from "../data/voteOptions";
 import { evaluateActiveStatus } from "../utils/activeRules";
 import { getUnvotedFilterCounts, isSongUnvotedForFilter, type UnvotedFilterKey } from "../utils/unvotedFilters";
@@ -22,12 +24,78 @@ const emptyVotes = (): Song["votes"] => ({
   lilacChorus: "NONE",
 });
 
+type SongRow = {
+  id: string;
+  title: string;
+  artist: string;
+  youtube_link: string | null;
+  added_by: string | null;
+  status: Song["status"];
+  note: string | null;
+};
+
+const rowToSong = (row: SongRow): Song => ({
+  id: row.id,
+  title: row.title,
+  artist: row.artist,
+  youtubeLink: row.youtube_link || "",
+  status: row.status,
+  createdBy: row.added_by,
+  note: row.note,
+  extraNote: null,
+  votes: emptyVotes(),
+});
+
 export const useNomination = () => {
   const songs = ref<Song[]>(mockSongs);
   const comments = ref<SongComment[]>(mockComments);
   const activeFilter = ref<"ALL" | "ACTIVE" | "PENDING">("ALL");
   const unvotedFilter = ref<UnvotedFilterKey>("ALL");
   const query = ref("");
+  let songsChannel: RealtimeChannel | null = null;
+
+  const mergeSong = (song: Song) => {
+    const existingIndex = songs.value.findIndex((item) => item.id === song.id);
+    songs.value =
+      existingIndex === -1
+        ? [song, ...songs.value]
+        : songs.value.map((item) => (item.id === song.id ? { ...item, ...song, votes: item.votes } : item));
+  };
+
+  const loadRemoteSongs = async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note").order("created_at", { ascending: false });
+    if (error || !data) return;
+
+    data.forEach((row) => mergeSong(rowToSong(row as SongRow)));
+  };
+
+  const subscribeToRemoteSongs = () => {
+    if (!supabase || songsChannel) return;
+
+    songsChannel = supabase
+      .channel("songs-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "songs" }, (payload) => mergeSong(rowToSong(payload.new as SongRow)))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "songs" }, (payload) => mergeSong(rowToSong(payload.new as SongRow)))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "songs" }, (payload) => {
+        const deletedId = (payload.old as Pick<SongRow, "id">).id;
+        songs.value = songs.value.filter((song) => song.id !== deletedId);
+      })
+      .subscribe();
+  };
+
+  onMounted(() => {
+    if (supabase) songs.value = [];
+    loadRemoteSongs();
+    subscribeToRemoteSongs();
+  });
+
+  onUnmounted(() => {
+    if (!supabase || !songsChannel) return;
+    supabase.removeChannel(songsChannel);
+    songsChannel = null;
+  });
 
   const decoratedSongs = computed(() =>
     songs.value.map((song) => {
@@ -82,7 +150,18 @@ export const useNomination = () => {
     song.status = evaluateActiveStatus(song.votes).active ? "ACTIVE" : "PENDING";
   };
 
-  const addSong = (payload: Pick<Song, "title" | "artist" | "youtubeLink">, userId: string) => {
+  const addSong = async (payload: Pick<Song, "title" | "artist" | "youtubeLink">, userId: string) => {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("songs")
+        .insert({ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: userId })
+        .select("id,title,artist,youtube_link,added_by,status,note")
+        .single();
+
+      if (!error && data) mergeSong(rowToSong(data as SongRow));
+      return;
+    }
+
     const song: Song = {
       id: `song-${Date.now()}`,
       status: "PENDING",

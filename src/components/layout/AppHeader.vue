@@ -10,9 +10,6 @@ defineProps<{
   };
 }>();
 
-defineEmits<{
-  leave: [];
-}>();
 </script>
 
 <template>
@@ -26,7 +23,7 @@ defineEmits<{
       <strong>Static Stereo</strong>
       <span>{{ stats.active }} active / {{ stats.total }} songs</span>
     </div>
-    <button class="member-button" type="button" @click="$emit('leave')" :aria-label="`${member.name} 로그아웃`">
+    <button class="member-button" type="button" :aria-label="`${member.name} 로그아웃`">
       {{ member.avatar }}
     </button>
   </header>
