@@ -8,6 +8,7 @@ export type Song = {
   artist: string;
   youtubeLink: string;
   status: SongStatus;
+  createdAt?: string | null;
   createdBy?: string | null;
   note?: string | null;
   extraNote?: string | null;

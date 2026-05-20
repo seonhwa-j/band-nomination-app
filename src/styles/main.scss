@@ -327,7 +327,15 @@ a {
   }
 }
 
+.toolbar-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .search-input,
+.sort-select,
 .gate-form input,
 .gate-form select,
 .song-form input,
@@ -340,6 +348,12 @@ a {
   padding: 0 12px;
   background: #181818;
   color: var(--text);
+}
+
+.sort-select {
+  min-width: 132px;
+  padding-right: 28px;
+  color: var(--title);
 }
 
 .search-input::placeholder,

@@ -11,7 +11,7 @@ import type { Song } from "./types/song";
 
 const auth = useAuth();
 const nomination = useNomination();
-const expandedSongId = ref("song-001");
+const expandedSongId = ref("");
 const addPanelOpen = ref(false);
 const editingSongId = ref("");
 const newSong = ref({
@@ -113,7 +113,13 @@ const deleteSongAsCurrentMember = (songId: string) => {
               {{ filter }}
             </button>
           </div>
-          <input v-model="nomination.query.value" class="search-input" placeholder="곡 또는 아티스트 검색" />
+          <div class="toolbar-row">
+            <input v-model="nomination.query.value" class="search-input" placeholder="곡 또는 아티스트 검색" />
+            <select v-model="nomination.sortOrder.value" class="sort-select" aria-label="정렬">
+              <option value="LATEST">최신 순</option>
+              <option value="AGREE">좋아요 많은 순</option>
+            </select>
+          </div>
         </section>
 
         <FilterBar :active-filter="nomination.unvotedFilter.value" :counts="nomination.unvotedCounts.value" @change="nomination.setUnvotedFilter" />

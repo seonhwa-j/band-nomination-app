@@ -32,6 +32,7 @@ type SongRow = {
   added_by: string | null;
   status: Song["status"];
   note: string | null;
+  created_at: string | null;
 };
 
 const rowToSong = (row: SongRow): Song => ({
@@ -40,17 +41,30 @@ const rowToSong = (row: SongRow): Song => ({
   artist: row.artist,
   youtubeLink: row.youtube_link || "",
   status: row.status,
+  createdAt: row.created_at,
   createdBy: row.added_by,
   note: row.note,
   extraNote: null,
   votes: emptyVotes(),
 });
 
+type SortOrder = "LATEST" | "AGREE";
+
+const getLatestSortValue = (song: Song) => {
+  if (song.createdAt) {
+    const timestamp = new Date(song.createdAt).getTime();
+    if (!Number.isNaN(timestamp)) return timestamp;
+  }
+  const numericId = Number(song.id.match(/\d+/)?.[0] ?? 0);
+  return Number.isNaN(numericId) ? 0 : numericId;
+};
+
 export const useNomination = () => {
   const songs = ref<Song[]>(mockSongs);
   const comments = ref<SongComment[]>(mockComments);
   const activeFilter = ref<"ALL" | "ACTIVE" | "PENDING">("ALL");
   const unvotedFilter = ref<UnvotedFilterKey>("ALL");
+  const sortOrder = ref<SortOrder>("LATEST");
   const query = ref("");
   let songsChannel: RealtimeChannel | null = null;
 
@@ -65,7 +79,7 @@ export const useNomination = () => {
   const loadRemoteSongs = async () => {
     if (!supabase) return;
 
-    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note,created_at").order("created_at", { ascending: false });
     if (error || !data) return;
 
     data.forEach((row) => mergeSong(rowToSong(row as SongRow)));
@@ -121,7 +135,8 @@ export const useNomination = () => {
         return matchesStatus && matchesUnvoted && matchesQuery;
       })
       .sort((a, b) => {
-        if (b.agreeScore !== a.agreeScore) return b.agreeScore - a.agreeScore;
+        if (sortOrder.value === "LATEST") return getLatestSortValue(b) - getLatestSortValue(a);
+        if ((b.agreeScore ?? 0) !== (a.agreeScore ?? 0)) return (b.agreeScore ?? 0) - (a.agreeScore ?? 0);
         if (a.status !== b.status) return a.status === "ACTIVE" ? -1 : 1;
         return a.title.localeCompare(b.title, "ko");
       });
@@ -151,14 +166,16 @@ export const useNomination = () => {
   };
 
   const addSong = async (payload: Pick<Song, "title" | "artist" | "youtubeLink">, userId: string) => {
+    const createdAt = new Date().toISOString();
+
     if (supabase) {
       const { data, error } = await supabase
         .from("songs")
-        .insert({ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: userId })
-        .select("id,title,artist,youtube_link,added_by,status,note")
+        .insert({ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: userId, created_at: createdAt })
+        .select("id,title,artist,youtube_link,added_by,status,note,created_at")
         .single();
 
-      if (!error && data) mergeSong(rowToSong(data as SongRow));
+      if (!error && data) mergeSong(rowToSong({ ...(data as SongRow), created_at: (data as SongRow).created_at || createdAt }));
       return;
     }
 
@@ -166,6 +183,7 @@ export const useNomination = () => {
       id: `song-${Date.now()}`,
       status: "PENDING",
       createdBy: userId,
+      createdAt,
       note: null,
       extraNote: null,
       ...payload,
@@ -231,6 +249,7 @@ export const useNomination = () => {
     filteredSongs,
     activeFilter,
     unvotedFilter,
+    sortOrder,
     unvotedCounts,
     query,
     stats,
