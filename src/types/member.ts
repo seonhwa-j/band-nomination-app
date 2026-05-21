@@ -14,4 +14,5 @@ export type AuthUser = {
   role: string;
   avatar: string;
   aliases?: string[];
+  supabaseUserId?: string | null;
 };

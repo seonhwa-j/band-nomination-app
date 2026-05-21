@@ -11,6 +11,7 @@ export type Song = {
   createdAt?: string | null;
   createdBy?: string | null;
   createdByAliases?: string[];
+  ownerId?: string | null;
   note?: string | null;
   extraNote?: string | null;
   votes: RoleVotes;

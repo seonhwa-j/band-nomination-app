@@ -19,6 +19,7 @@ const props = defineProps<{
   expanded: boolean;
   comments: SongComment[];
   currentUserId: string;
+  currentSupabaseUserId: string;
   currentUserAliases: string[];
   currentPart: BandPart;
 }>();
@@ -39,7 +40,7 @@ const unvotedSummary = computed(() => (status.value === "PENDING" ? formatUnvote
 const canManageSong = computed(() => {
   const ownerKeys = [props.song.createdBy, ...(props.song.createdByAliases ?? [])].filter((key): key is string => Boolean(key));
   const currentUserKeys = [props.currentUserId, ...props.currentUserAliases];
-  return ownerKeys.some((ownerKey) => currentUserKeys.includes(ownerKey));
+  return Boolean(props.song.ownerId && props.currentSupabaseUserId && props.song.ownerId === props.currentSupabaseUserId) || ownerKeys.some((ownerKey) => currentUserKeys.includes(ownerKey));
 });
 
 const handleEdit = () => {

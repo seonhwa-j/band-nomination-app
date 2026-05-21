@@ -22,6 +22,7 @@ const newSong = ref({
 
 const currentMember = computed(() => auth.currentMember.value);
 const currentMemberId = computed(() => currentMember.value.id);
+const currentSupabaseUserId = computed(() => currentMember.value.supabaseUserId ?? "");
 const currentMemberAliases = computed(() =>
   Array.from(
     new Set(
@@ -37,8 +38,8 @@ const currentMemberAliases = computed(() =>
   ),
 );
 
-const handleEnter = (code: string, payload: { part: BandPart }) => {
-  auth.enter(code, payload);
+const handleEnter = async (code: string, payload: { part: BandPart }) => {
+  await auth.enter(code, payload);
 };
 
 const resetSongForm = () => {
@@ -77,7 +78,8 @@ const openAddSongPanel = () => {
 
 const openEditSongPanel = (song: Song) => {
   const ownerKeys = [song.createdBy, ...(song.createdByAliases ?? [])].filter((key): key is string => Boolean(key));
-  if (!ownerKeys.some((ownerKey) => currentMemberAliases.value.includes(ownerKey))) return;
+  const canManageByOwnerId = Boolean(song.ownerId && currentSupabaseUserId.value && song.ownerId === currentSupabaseUserId.value);
+  if (!canManageByOwnerId && !ownerKeys.some((ownerKey) => currentMemberAliases.value.includes(ownerKey))) return;
 
   editingSongId.value = song.id;
   newSong.value = {
@@ -94,7 +96,7 @@ const closeSongPanel = () => {
 };
 
 const deleteSongAsCurrentMember = async (songId: string) => {
-  const deleted = await nomination.deleteSong(songId, currentMemberId.value);
+  const deleted = await nomination.deleteSong(songId, currentMemberId.value, currentSupabaseUserId.value);
   if (deleted && expandedSongId.value === songId) expandedSongId.value = "";
 };
 </script>
@@ -149,6 +151,7 @@ const deleteSongAsCurrentMember = async (songId: string) => {
           :expanded="expandedSongId === song.id"
           :comments="nomination.getCommentsBySong(song.id)"
           :current-user-id="currentMemberId"
+          :current-supabase-user-id="currentSupabaseUserId"
           :current-user-aliases="currentMemberAliases"
           :current-part="currentMember.part"
           @toggle="expandedSongId = expandedSongId === $event ? '' : $event"

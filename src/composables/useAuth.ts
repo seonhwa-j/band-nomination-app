@@ -1,5 +1,6 @@
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { members } from "../data/members";
+import { supabase } from "../lib/supabase";
 import type { AuthUser, BandPart } from "../types/member";
 
 const inviteCode = import.meta.env.VITE_INVITE_CODE || "STATICSTEREO2026";
@@ -15,6 +16,13 @@ const fallbackUser: AuthUser = {
 
 const getPartMeta = (part: BandPart) => members.find((member) => member.id === part) ?? members[0];
 const getStableUserId = (part: BandPart) => part;
+const getSupabaseCredentials = (part: BandPart) => {
+  const key = part.toUpperCase();
+  return {
+    email: import.meta.env[`VITE_SUPABASE_AUTH_${key}_EMAIL`] || "",
+    password: import.meta.env[`VITE_SUPABASE_AUTH_${key}_PASSWORD`] || "",
+  };
+};
 
 const normalizeUser = (user: AuthUser): AuthUser => ({
   ...user,
@@ -41,8 +49,38 @@ export const useAuth = () => {
   const entered = computed(() => Boolean(user.value));
   const currentMember = computed(() => user.value ?? fallbackUser);
 
-  const enter = (code: string, payload: { part: BandPart }) => {
+  onMounted(async () => {
+    if (!supabase || !user.value) return;
+
+    const { data } = await supabase.auth.getSession();
+    const sessionUserId = data.session?.user.id ?? null;
+    if (!sessionUserId || user.value.supabaseUserId !== sessionUserId) {
+      user.value = null;
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem("nomination-member");
+    }
+  });
+
+  const enter = async (code: string, payload: { part: BandPart }) => {
     if (code.trim() !== inviteCode) return false;
+
+    if (!supabase) {
+      window.alert("Supabase is not configured. Please check your environment variables.");
+      return false;
+    }
+
+    const credentials = getSupabaseCredentials(payload.part);
+    if (!credentials.email || !credentials.password) {
+      window.alert(`Supabase Auth credentials are missing for ${payload.part}. Please check your .env file.`);
+      return false;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword(credentials);
+    if (error) {
+      console.error("Supabase Auth Login Error:", error);
+      window.alert(`Supabase login failed.\n\n${error.message}`);
+      return false;
+    }
 
     const partMeta = getPartMeta(payload.part);
     const nextUser: AuthUser = {
@@ -52,6 +90,7 @@ export const useAuth = () => {
       role: partMeta.role,
       avatar: partMeta.avatar,
       aliases: [partMeta.id, partMeta.name, partMeta.role, partMeta.avatar],
+      supabaseUserId: data.user.id,
     };
 
     user.value = nextUser;
@@ -60,7 +99,8 @@ export const useAuth = () => {
     return true;
   };
 
-  const leave = () => {
+  const leave = async () => {
+    if (supabase) await supabase.auth.signOut();
     user.value = null;
     localStorage.removeItem(storageKey);
     localStorage.removeItem("nomination-member");

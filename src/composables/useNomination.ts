@@ -34,6 +34,7 @@ type SongRow = {
   status: Song["status"];
   note: string | null;
   created_at: string | null;
+  owner_id?: string | null;
 };
 
 const rowToSong = (row: SongRow): Song => {
@@ -48,6 +49,7 @@ const rowToSong = (row: SongRow): Song => {
     createdAt: row.created_at,
     createdBy: row.added_by,
     createdByAliases: Array.from(new Set(userRows.flatMap((user) => [user.username, user.role, user.profile_picture]).filter(Boolean) as string[])),
+    ownerId: row.owner_id ?? null,
     note: row.note,
     extraNote: null,
     votes: emptyVotes(),
@@ -85,7 +87,7 @@ export const useNomination = () => {
   const loadRemoteSongs = async () => {
     if (!supabase) return;
 
-    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note,created_at,users(username,role,profile_picture)").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("songs").select("id,title,artist,youtube_link,added_by,status,note,created_at,owner_id,users(username,role,profile_picture)").order("created_at", { ascending: false });
     if (error || !data) return;
 
     data.forEach((row) => mergeSong(rowToSong(row as SongRow)));
@@ -185,7 +187,7 @@ export const useNomination = () => {
       const { data, error } = await supabase
         .from("songs")
         .insert([{ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: user.id, status: "PENDING", created_at: createdAt }])
-        .select("id,title,artist,youtube_link,added_by,status,note,created_at")
+        .select("id,title,artist,youtube_link,added_by,status,note,created_at,owner_id")
         .single();
 
       if (error || !data) throw error ?? new Error("No inserted song returned from Supabase.");
@@ -228,7 +230,7 @@ export const useNomination = () => {
         .from("songs")
         .update(updatePayload)
         .eq("id", songId)
-        .select("id,title,artist,youtube_link,added_by,status,note,created_at,users(username,role,profile_picture)")
+        .select("id,title,artist,youtube_link,added_by,status,note,created_at,owner_id,users(username,role,profile_picture)")
         .single();
 
       if (error || !data) throw error ?? new Error("No updated song returned from Supabase.");
@@ -260,19 +262,47 @@ export const useNomination = () => {
     }
   };
 
-  const deleteSong = async (songId: string, userId: string) => {
-    const song = songs.value.find((item) => item.id === songId);
+  const deleteSong = async (songId: string, userId: string, supabaseUserId: string) => {
+    const targetSongId = String(songId ?? "").trim();
+    const song = songs.value.find((item) => item.id === targetSongId);
     if (!song || !userId) return false;
 
     try {
       if (!supabase) throw new Error("Supabase is not configured. Song was not deleted.");
 
-      const { data, error } = await supabase.from("songs").delete().eq("id", songId).select("id");
-      if (error) throw error;
-      if (!data?.some((deletedSong) => deletedSong.id === songId)) throw new Error("No song was deleted from Supabase.");
+      const isRemoteSongId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetSongId);
+      if (!isRemoteSongId) {
+        songs.value = songs.value.filter((item) => item.id !== targetSongId);
+        comments.value = comments.value.filter((comment) => comment.songId !== targetSongId);
+        return true;
+      }
 
-      songs.value = songs.value.filter((item) => item.id !== songId);
-      comments.value = comments.value.filter((comment) => comment.songId !== songId);
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) {
+        throw new Error("Supabase login session is missing or expired. Please enter again and try deleting the song.");
+      }
+
+      if (authData.user.id !== supabaseUserId) {
+        throw new Error("The saved app user does not match the current Supabase login session. Please enter again and try deleting the song.");
+      }
+
+      if (song.ownerId && song.ownerId !== authData.user.id) {
+        throw new Error("Only the Supabase account that added this song can delete it.");
+      }
+
+      const { data, error } = await supabase.from("songs").delete().eq("id", targetSongId).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data?.id) {
+        console.error("Supabase Delete Error: No matching row deleted.", {
+          songId: targetSongId,
+          userId,
+          localSong: song,
+        });
+        throw new Error("No song was deleted from Supabase. The row may not exist, the ID may not match, or RLS may be blocking delete access.");
+      }
+
+      songs.value = songs.value.filter((item) => item.id !== targetSongId);
+      comments.value = comments.value.filter((comment) => comment.songId !== targetSongId);
       return true;
     } catch (error) {
       const supabaseError = error as { code?: string; message?: string; details?: string; hint?: string };
