@@ -186,7 +186,17 @@ export const useNomination = () => {
 
       const { data, error } = await supabase
         .from("songs")
-        .insert([{ title: payload.title, artist: payload.artist, youtube_link: payload.youtubeLink, added_by: user.id, status: "PENDING", created_at: createdAt }])
+        .insert([
+          {
+            title: payload.title,
+            artist: payload.artist,
+            youtube_link: payload.youtubeLink,
+            added_by: user.id,
+            owner_id: user.supabaseUserId,
+            status: "PENDING",
+            created_at: createdAt,
+          },
+        ])
         .select("id,title,artist,youtube_link,added_by,status,note,created_at,owner_id")
         .single();
 

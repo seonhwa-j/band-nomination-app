@@ -16,7 +16,8 @@ create table public.songs (
   added_by text references public.users(id),
   status song_status not null default 'PENDING',
   note text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  owner_id uuid default auth.uid()
 );
 
 create table public.song_role_votes (
@@ -41,3 +42,31 @@ create table public.comments (
 alter publication supabase_realtime add table public.songs;
 alter publication supabase_realtime add table public.song_role_votes;
 alter publication supabase_realtime add table public.comments;
+
+alter table public.users enable row level security;
+alter table public.songs enable row level security;
+
+create policy "Authenticated users can read users"
+on public.users
+for select
+to authenticated
+using (true);
+
+create policy "Authenticated users can insert users"
+on public.users
+for insert
+to authenticated
+with check (
+  id in ('vocal', 'drum', 'bass', 'devil', 'sunny', 'keyboard', 'chorus')
+);
+
+create policy "Authenticated users can update users"
+on public.users
+for update
+to authenticated
+using (
+  id in ('vocal', 'drum', 'bass', 'devil', 'sunny', 'keyboard', 'chorus')
+)
+with check (
+  id in ('vocal', 'drum', 'bass', 'devil', 'sunny', 'keyboard', 'chorus')
+);
