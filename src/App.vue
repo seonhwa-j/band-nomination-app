@@ -6,7 +6,7 @@ import FilterBar from "./components/songs/FilterBar.vue";
 import SongCard from "./components/songs/SongCard.vue";
 import { useAuth } from "./composables/useAuth";
 import { useNomination } from "./composables/useNomination";
-import type { BandPart } from "./types/member";
+import type { AuthLoginPayload } from "./types/member";
 import type { Song } from "./types/song";
 
 const auth = useAuth();
@@ -40,7 +40,7 @@ const currentMemberAliases = computed(() =>
   ),
 );
 
-const handleEnter = async (code: string, payload: { part: BandPart }) => {
+const handleEnter = async (code: string, payload: AuthLoginPayload) => {
   await auth.enter(code, payload);
 };
 

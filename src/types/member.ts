@@ -16,3 +16,7 @@ export type AuthUser = {
   aliases?: string[];
   supabaseUserId?: string | null;
 };
+
+export type AuthLoginPayload = {
+  email: string;
+};

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { BandPart, Member } from "../../types/member";
+import type { AuthLoginPayload, Member } from "../../types/member";
 
 defineProps<{
   members: Member[];
 }>();
 
 const emit = defineEmits<{
-  enter: [code: string, payload: { part: BandPart }];
+  enter: [code: string, payload: AuthLoginPayload];
 }>();
 
 const code = ref("");
-const part = ref<BandPart>("vocal");
+const email = ref("");
 const step = ref<"code" | "profile">("code");
 const error = ref("");
 
@@ -27,7 +27,11 @@ const verifyCode = () => {
 
 const submit = () => {
   error.value = "";
-  emit("enter", code.value, { part: part.value });
+  if (!email.value.trim()) {
+    error.value = "이메일을 입력해 주세요.";
+    return;
+  }
+  emit("enter", code.value, { email: email.value });
 };
 </script>
 
@@ -53,13 +57,11 @@ const submit = () => {
 
       <form v-else class="gate-form" @submit.prevent="submit">
         <label>
-          <span>파트</span>
-          <select v-model="part">
-            <option v-for="member in members" :key="member.id" :value="member.id">{{ member.name }} · {{ member.role }}</option>
-          </select>
+          <span>이메일</span>
+          <input v-model="email" autocomplete="email" type="email" placeholder="member@email.com" />
         </label>
         <p v-if="error" class="form-error">{{ error }}</p>
-        <button class="primary-action" type="submit">시작하기</button>
+        <button class="primary-action" type="submit">로그인 링크 보내기</button>
       </form>
     </section>
   </main>

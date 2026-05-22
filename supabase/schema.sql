@@ -8,6 +8,14 @@ create table public.users (
   profile_picture text
 );
 
+create table public.member_auth (
+  auth_user_id uuid primary key references auth.users(id) on delete cascade,
+  member_id text not null unique references public.users(id),
+  email text not null unique,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 create table public.songs (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -44,6 +52,7 @@ alter publication supabase_realtime add table public.song_role_votes;
 alter publication supabase_realtime add table public.comments;
 
 alter table public.users enable row level security;
+alter table public.member_auth enable row level security;
 alter table public.songs enable row level security;
 
 create policy "Authenticated users can read users"
@@ -69,4 +78,12 @@ using (
 )
 with check (
   id in ('vocal', 'drum', 'bass', 'devil', 'sunny', 'keyboard', 'chorus')
+);
+
+create policy "Members can read their own auth mapping"
+on public.member_auth
+for select
+to authenticated
+using (
+  auth_user_id = auth.uid()
 );
