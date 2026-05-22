@@ -6,6 +6,7 @@ import type { AuthLoginPayload, AuthUser, BandPart } from "../types/member";
 
 const inviteCode = import.meta.env.VITE_INVITE_CODE || "STATICSTEREO2026";
 const storageKey = "nomination-user";
+const getSiteUrl = () => (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
 
 const fallbackUser: AuthUser = {
   id: "guest",
@@ -135,7 +136,7 @@ export const useAuth = () => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.href.split("#")[0],
+        emailRedirectTo: getSiteUrl(),
         shouldCreateUser: false,
       },
     });
