@@ -75,6 +75,7 @@ export const useNomination = () => {
   const sortOrder = ref<SortOrder>("LATEST");
   const query = ref("");
   let songsChannel: RealtimeChannel | null = null;
+  let commentsChannel: RealtimeChannel | null = null;
 
   const mergeSong = (song: Song) => {
     const existingIndex = songs.value.findIndex((item) => item.id === song.id);
@@ -93,6 +94,53 @@ export const useNomination = () => {
     data.forEach((row) => mergeSong(rowToSong(row as SongRow)));
   };
 
+  type CommentRow = {
+    id: string;
+    song_id: string;
+    user_id: string;
+    user_part: string | null;
+    text: string;
+    created_at: string;
+    updated_at: string | null;
+    users?: { username?: string | null; role?: string | null; profile_picture?: string | null } | { username?: string | null; role?: string | null; profile_picture?: string | null }[] | null;
+  };
+
+  const rowToComment = (row: CommentRow): SongComment => {
+    const userRows = Array.isArray(row.users) ? row.users : row.users ? [row.users] : [];
+    const profile = userRows[0];
+
+    return {
+      id: row.id,
+      songId: row.song_id,
+      userId: row.user_id,
+      userName: profile?.username || row.user_id,
+      userPart: row.user_part || profile?.role || "",
+      text: row.text,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at ?? undefined,
+    };
+  };
+
+  const mergeComment = (comment: SongComment) => {
+    const existingIndex = comments.value.findIndex((item) => item.id === comment.id);
+    comments.value =
+      existingIndex === -1
+        ? [...comments.value, comment]
+        : comments.value.map((item) => (item.id === comment.id ? { ...item, ...comment } : item));
+  };
+
+  const loadRemoteComments = async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("comments")
+      .select("id,song_id,user_id,user_part,text,created_at,updated_at,users(username,role,profile_picture)")
+      .order("created_at", { ascending: true });
+    if (error || !data) return;
+
+    data.forEach((row) => mergeComment(rowToComment(row as CommentRow)));
+  };
+
   const subscribeToRemoteSongs = () => {
     if (!supabase || songsChannel) return;
 
@@ -107,15 +155,37 @@ export const useNomination = () => {
       .subscribe();
   };
 
+  const subscribeToRemoteComments = () => {
+    if (!supabase || commentsChannel) return;
+
+    commentsChannel = supabase
+      .channel("comments-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments" }, (payload) => mergeComment(rowToComment(payload.new as CommentRow)))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "comments" }, (payload) => mergeComment(rowToComment(payload.new as CommentRow)))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "comments" }, (payload) => {
+        const deletedId = (payload.old as Pick<CommentRow, "id">).id;
+        comments.value = comments.value.filter((comment) => comment.id !== deletedId);
+      })
+      .subscribe();
+  };
+
   onMounted(() => {
     loadRemoteSongs();
+    loadRemoteComments();
     subscribeToRemoteSongs();
+    subscribeToRemoteComments();
   });
 
   onUnmounted(() => {
-    if (!supabase || !songsChannel) return;
-    supabase.removeChannel(songsChannel);
-    songsChannel = null;
+    if (!supabase) return;
+    if (songsChannel) {
+      supabase.removeChannel(songsChannel);
+      songsChannel = null;
+    }
+    if (commentsChannel) {
+      supabase.removeChannel(commentsChannel);
+      commentsChannel = null;
+    }
   });
 
   const decoratedSongs = computed(() =>
@@ -326,32 +396,81 @@ export const useNomination = () => {
     }
   };
 
-  const addComment = (songId: string, user: AuthUser, text: string) => {
+  const addComment = async (songId: string, user: AuthUser, text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
 
-    comments.value = [
-      ...comments.value,
-      {
-        id: `comment-${Date.now()}`,
-        songId,
-        userId: user.id,
+    try {
+      if (!supabase) throw new Error("Supabase is not configured. Comment was not saved.");
+
+      const { data, error } = await supabase
+        .from("comments")
+        .insert([{ song_id: songId, user_id: user.id, user_part: user.role, text: trimmed }])
+        .select("id,song_id,user_id,user_part,text,created_at,updated_at")
+        .single();
+
+      if (error || !data) throw error ?? new Error("No inserted comment returned from Supabase.");
+
+      mergeComment({
+        ...rowToComment(data as CommentRow),
         userName: user.name,
         userPart: user.role,
-        text: trimmed,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+      });
+      return true;
+    } catch (error) {
+      const supabaseError = error as { message?: string; details?: string; hint?: string };
+      console.error("Supabase Comment Insert Error:", error);
+      window.alert(`Comment save failed.\n\n${supabaseError?.message ?? "Please check Supabase comments table and RLS policies."}`);
+      return false;
+    }
   };
 
-  const updateComment = (commentId: string, text: string) => {
-    comments.value = comments.value.map((comment) =>
-      comment.id === commentId ? { ...comment, text, updatedAt: new Date().toISOString() } : comment,
-    );
+  const updateComment = async (commentId: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+
+    try {
+      if (!supabase) throw new Error("Supabase is not configured. Comment was not updated.");
+
+      const { data, error } = await supabase
+        .from("comments")
+        .update({ text: trimmed, updated_at: new Date().toISOString() })
+        .eq("id", commentId)
+        .select("id,song_id,user_id,user_part,text,created_at,updated_at")
+        .single();
+
+      if (error || !data) throw error ?? new Error("No updated comment returned from Supabase.");
+
+      const previous = comments.value.find((comment) => comment.id === commentId);
+      mergeComment({
+        ...rowToComment(data as CommentRow),
+        userName: previous?.userName ?? (data as CommentRow).user_id,
+        userPart: previous?.userPart ?? (data as CommentRow).user_part ?? "",
+      });
+      return true;
+    } catch (error) {
+      const supabaseError = error as { message?: string; details?: string; hint?: string };
+      console.error("Supabase Comment Update Error:", error);
+      window.alert(`Comment update failed.\n\n${supabaseError?.message ?? "Please check Supabase comments table and RLS policies."}`);
+      return false;
+    }
   };
 
-  const deleteComment = (commentId: string) => {
-    comments.value = comments.value.filter((comment) => comment.id !== commentId);
+  const deleteComment = async (commentId: string) => {
+    try {
+      if (!supabase) throw new Error("Supabase is not configured. Comment was not deleted.");
+
+      const { error } = await supabase.from("comments").delete().eq("id", commentId);
+      if (error) throw error;
+
+      comments.value = comments.value.filter((comment) => comment.id !== commentId);
+      return true;
+    } catch (error) {
+      const supabaseError = error as { message?: string; details?: string; hint?: string };
+      console.error("Supabase Comment Delete Error:", error);
+      window.alert(`Comment delete failed.\n\n${supabaseError?.message ?? "Please check Supabase comments table and RLS policies."}`);
+      return false;
+    }
   };
 
   const getCommentsBySong = (songId: string) => comments.value.filter((comment) => comment.songId === songId);
