@@ -1,37 +1,26 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { AuthLoginPayload, Member } from "../../types/member";
-
-defineProps<{
-  members: Member[];
-}>();
+import type { AuthLoginPayload } from "../../types/member";
 
 const emit = defineEmits<{
-  enter: [code: string, payload: AuthLoginPayload];
+  enter: [payload: AuthLoginPayload];
 }>();
 
-const code = ref("");
 const email = ref("");
-const step = ref<"code" | "profile">("code");
+const password = ref("");
 const error = ref("");
-
-const verifyCode = () => {
-  error.value = "";
-  const expectedCode = import.meta.env.VITE_INVITE_CODE || "STATICSTEREO2026";
-  if (code.value.trim() !== expectedCode) {
-    error.value = "초대 코드를 다시 확인해 주세요.";
-    return;
-  }
-  step.value = "profile";
-};
 
 const submit = () => {
   error.value = "";
   if (!email.value.trim()) {
-    error.value = "이메일을 입력해 주세요.";
+    error.value = "Please enter your email.";
     return;
   }
-  emit("enter", code.value, { email: email.value });
+  if (!password.value.trim()) {
+    error.value = "Please enter your password.";
+    return;
+  }
+  emit("enter", { email: email.value, password: password.value });
 };
 </script>
 
@@ -43,25 +32,20 @@ const submit = () => {
         <span></span>
         <span></span>
       </div>
-      <p class="eyebrow">Static Stereo 선곡장</p>
+      <p class="eyebrow">Static Stereo Members</p>
       <h1>NOMINATION</h1>
 
-      <form v-if="step === 'code'" class="gate-form" @submit.prevent="verifyCode">
+      <form class="gate-form" @submit.prevent="submit">
         <label>
-          <span>초대 코드</span>
-          <input v-model="code" autocomplete="off" placeholder="초대 코드를 입력하세요" />
-        </label>
-        <p v-if="error" class="form-error">{{ error }}</p>
-        <button class="primary-action" type="submit">다음</button>
-      </form>
-
-      <form v-else class="gate-form" @submit.prevent="submit">
-        <label>
-          <span>이메일</span>
+          <span>Email</span>
           <input v-model="email" autocomplete="email" type="email" placeholder="member@email.com" />
         </label>
+        <label>
+          <span>Password</span>
+          <input v-model="password" autocomplete="current-password" type="password" placeholder="Temporary or personal password" />
+        </label>
         <p v-if="error" class="form-error">{{ error }}</p>
-        <button class="primary-action" type="submit">로그인 링크 보내기</button>
+        <button class="primary-action" type="submit">Log in</button>
       </form>
     </section>
   </main>

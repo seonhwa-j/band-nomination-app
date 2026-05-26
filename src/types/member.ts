@@ -13,10 +13,12 @@ export type AuthUser = {
   part: BandPart;
   role: string;
   avatar: string;
+  email?: string;
   aliases?: string[];
   supabaseUserId?: string | null;
 };
 
 export type AuthLoginPayload = {
   email: string;
+  password: string;
 };

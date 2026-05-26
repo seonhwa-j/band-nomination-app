@@ -1,12 +1,10 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { members } from "../data/members";
-import { supabase } from "../lib/supabase";
+import { supabase, supabaseConfig } from "../lib/supabase";
 import type { AuthChangeEvent, Session, Subscription } from "@supabase/supabase-js";
 import type { AuthLoginPayload, AuthUser, BandPart } from "../types/member";
 
-const inviteCode = import.meta.env.VITE_INVITE_CODE || "STATICSTEREO2026";
 const storageKey = "nomination-user";
-const getSiteUrl = () => (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
 
 const fallbackUser: AuthUser = {
   id: "guest",
@@ -45,6 +43,20 @@ type MemberAuthRow = {
 };
 
 const isBandPart = (value: string | undefined): value is BandPart => members.some((member) => member.id === value);
+
+const verifyPassword = async (email: string, password: string) => {
+  const response = await fetch(`${supabaseConfig.url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseConfig.anonKey,
+      Authorization: `Bearer ${supabaseConfig.anonKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  return response.ok;
+};
 
 export const useAuth = () => {
   const user = ref<AuthUser | null>(parseStoredUser());
@@ -91,6 +103,7 @@ export const useAuth = () => {
       part,
       role: row?.users?.role || partMeta.role,
       avatar: row?.users?.profile_picture || partMeta.avatar,
+      email: session.user.email ?? "",
       aliases: [partMeta.id, partMeta.name, partMeta.role, partMeta.avatar, session.user.email ?? ""],
       supabaseUserId: session.user.id,
     });
@@ -108,8 +121,10 @@ export const useAuth = () => {
     if (data.session) await setUserFromSession(data.session);
     else if (user.value) await setUserFromSession(null);
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
-      await setUserFromSession(session);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      window.setTimeout(() => {
+        void setUserFromSession(session);
+      }, 0);
     });
     authSubscription = listener.subscription;
   });
@@ -119,9 +134,7 @@ export const useAuth = () => {
     authSubscription = null;
   });
 
-  const enter = async (code: string, payload: AuthLoginPayload) => {
-    if (code.trim() !== inviteCode) return false;
-
+  const enter = async (payload: AuthLoginPayload) => {
     if (!supabase) {
       window.alert("Supabase is not configured. Please check your environment variables.");
       return false;
@@ -133,22 +146,44 @@ export const useAuth = () => {
       return false;
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: getSiteUrl(),
-        shouldCreateUser: false,
-      },
-    });
-
-    if (error) {
-      console.error("Supabase Auth OTP Error:", error);
-      window.alert(`Login email failed.\n\n${error.message}`);
+    if (!payload.password.trim()) {
+      window.alert("Please enter your password.");
       return false;
     }
 
-    window.alert("Login link sent. Please open the email on this device or return to this page after clicking the link.");
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: payload.password,
+    });
+
+    if (error) {
+      console.error("Supabase password login error:", error);
+      window.alert(`Login failed.\n\n${error.message}`);
+      return false;
+    }
+
     return true;
+  };
+
+  const changePassword = async (currentPassword: string, nextPassword: string) => {
+    if (!supabase) return { ok: false, message: "Supabase is not configured." };
+
+    const trimmedCurrent = currentPassword.trim();
+    const trimmedNext = nextPassword.trim();
+    if (!trimmedCurrent || !trimmedNext) return { ok: false, message: "Please enter both passwords." };
+    if (trimmedNext.length < 8) return { ok: false, message: "New password must be at least 8 characters." };
+
+    const { data } = await supabase.auth.getUser();
+    const email = data.user?.email;
+    if (!email) return { ok: false, message: "Current session has no email. Please log in again." };
+
+    const currentPasswordIsValid = await verifyPassword(email, trimmedCurrent);
+    if (!currentPasswordIsValid) return { ok: false, message: "Current password is incorrect." };
+
+    const { error } = await supabase.auth.updateUser({ password: trimmedNext });
+    if (error) return { ok: false, message: error.message };
+
+    return { ok: true, message: "Password changed." };
   };
 
   const leave = async () => {
@@ -163,6 +198,7 @@ export const useAuth = () => {
     currentMember,
     entered,
     enter,
+    changePassword,
     leave,
   };
 };

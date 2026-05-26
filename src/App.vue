@@ -13,11 +13,21 @@ const auth = useAuth();
 const nomination = useNomination();
 const expandedSongId = ref("");
 const addPanelOpen = ref(false);
+const accountPanelOpen = ref(false);
+const passwordPanelOpen = ref(false);
+const passwordChangePending = ref(false);
+const passwordChangeError = ref("");
+const passwordChangeSuccess = ref("");
 const editingSongId = ref("");
 const newSong = ref({
   title: "",
   artist: "",
   youtubeLink: "",
+});
+const passwordForm = ref({
+  currentPassword: "",
+  nextPassword: "",
+  confirmPassword: "",
 });
 const lastParsedYoutubeLink = ref("");
 let youtubeLinkLookupTimer: ReturnType<typeof setTimeout> | undefined;
@@ -40,8 +50,65 @@ const currentMemberAliases = computed(() =>
   ),
 );
 
-const handleEnter = async (code: string, payload: AuthLoginPayload) => {
-  await auth.enter(code, payload);
+const handleEnter = async (payload: AuthLoginPayload) => {
+  await auth.enter(payload);
+};
+
+const resetPasswordForm = () => {
+  passwordForm.value = { currentPassword: "", nextPassword: "", confirmPassword: "" };
+  passwordChangeError.value = "";
+  passwordChangeSuccess.value = "";
+};
+
+const openPasswordPanel = () => {
+  resetPasswordForm();
+  accountPanelOpen.value = false;
+  passwordPanelOpen.value = true;
+};
+
+const closePasswordPanel = () => {
+  passwordPanelOpen.value = false;
+  resetPasswordForm();
+};
+
+const openAccountPanel = () => {
+  accountPanelOpen.value = true;
+};
+
+const closeAccountPanel = () => {
+  accountPanelOpen.value = false;
+};
+
+const logoutFromAccountPanel = async () => {
+  accountPanelOpen.value = false;
+  await auth.leave();
+};
+
+const submitPasswordChange = async () => {
+  passwordChangeError.value = "";
+  passwordChangeSuccess.value = "";
+
+  if (passwordForm.value.nextPassword !== passwordForm.value.confirmPassword) {
+    passwordChangeError.value = "New passwords do not match.";
+    return;
+  }
+
+  passwordChangePending.value = true;
+  try {
+    const result = await auth.changePassword(passwordForm.value.currentPassword, passwordForm.value.nextPassword);
+
+    if (!result.ok) {
+      passwordChangeError.value = result.message;
+      return;
+    }
+
+    closePasswordPanel();
+  } catch (error) {
+    console.error("Password change failed:", error);
+    passwordChangeError.value = "Password change failed. Please try again.";
+  } finally {
+    passwordChangePending.value = false;
+  }
 };
 
 const resetSongForm = () => {
@@ -184,10 +251,10 @@ const deleteSongAsCurrentMember = async (songId: string) => {
 </script>
 
 <template>
-  <InviteCodeGate v-if="!auth.entered.value" :members="auth.members" @enter="handleEnter" />
+  <InviteCodeGate v-if="!auth.entered.value" @enter="handleEnter" />
 
   <div v-else class="app-shell">
-    <AppHeader :member="currentMember" :stats="nomination.stats.value" />
+    <AppHeader :member="currentMember" :stats="nomination.stats.value" @open-account-menu="openAccountPanel" />
 
     <main class="app-main">
       <section class="hero-panel">
@@ -269,6 +336,56 @@ const deleteSongAsCurrentMember = async (songId: string) => {
             <input v-model="newSong.youtubeLink" @input="handleYoutubeLinkInput" @change="handleYoutubeLinkInput" />
           </label>
           <button class="primary-action" type="submit">{{ editingSongId ? "저장하기" : "추가하기" }}</button>
+        </form>
+      </section>
+    </div>
+
+    <div v-if="accountPanelOpen" class="sheet-backdrop" @click.self="closeAccountPanel">
+      <section class="bottom-sheet account-sheet">
+        <header>
+          <h2>Account</h2>
+          <button type="button" aria-label="Close" @click="closeAccountPanel">x</button>
+        </header>
+        <div class="account-summary">
+          <div class="member-button member-button--static" aria-hidden="true">
+            {{ currentMember.avatar }}
+          </div>
+          <div>
+            <strong>{{ currentMember.name }}</strong>
+            <span>{{ currentMember.role }}</span>
+          </div>
+        </div>
+        <div class="account-actions">
+          <button type="button" @click="openPasswordPanel">Change password</button>
+          <button type="button" @click="logoutFromAccountPanel">Logout</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="passwordPanelOpen" class="sheet-backdrop">
+      <section class="bottom-sheet">
+        <header>
+          <h2>Change password</h2>
+          <button type="button" aria-label="Close" @click="closePasswordPanel">x</button>
+        </header>
+        <form class="song-form" @submit.prevent="submitPasswordChange">
+          <label>
+            <span>Current password</span>
+            <input v-model="passwordForm.currentPassword" autocomplete="current-password" required type="password" />
+          </label>
+          <label>
+            <span>New password</span>
+            <input v-model="passwordForm.nextPassword" autocomplete="new-password" minlength="8" required type="password" />
+          </label>
+          <label>
+            <span>Confirm new password</span>
+            <input v-model="passwordForm.confirmPassword" autocomplete="new-password" minlength="8" required type="password" />
+          </label>
+          <p v-if="passwordChangeError" class="form-error">{{ passwordChangeError }}</p>
+          <p v-if="passwordChangeSuccess" class="form-success">{{ passwordChangeSuccess }}</p>
+          <button class="primary-action" :disabled="passwordChangePending" type="submit">
+            {{ passwordChangePending ? "Changing..." : "Change password" }}
+          </button>
         </form>
       </section>
     </div>

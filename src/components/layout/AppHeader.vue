@@ -10,6 +10,9 @@ defineProps<{
   };
 }>();
 
+defineEmits<{
+  openAccountMenu: [];
+}>();
 </script>
 
 <template>
@@ -23,7 +26,7 @@ defineProps<{
       <strong>Static Stereo</strong>
       <span>{{ stats.active }} active / {{ stats.total }} songs</span>
     </div>
-    <button class="member-button" type="button" :aria-label="`${member.name} 로그아웃`">
+    <button class="member-button" type="button" :aria-label="`${member.name} account menu`" @click="$emit('openAccountMenu')">
       {{ member.avatar }}
     </button>
   </header>

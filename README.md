@@ -21,13 +21,6 @@ cp .env .env.local
 
 Do not put member passwords in Vite env files. Any variable starting with `VITE_` is exposed to the browser bundle.
 
-Member login uses Supabase email magic links. Add each member as a Supabase Auth user, insert their band profile into `public.users`, then map the Auth user to the profile in `public.member_auth`.
+Member login uses Supabase email/password auth. Add each member as a Supabase Auth user with a temporary password, insert their band profile into `public.users`, then map the Auth user to the profile in `public.member_auth`.
 
-For Supabase Auth URL Configuration, use:
-
-```text
-Site URL: https://band-nomination-app.vercel.app
-Redirect URLs:
-https://band-nomination-app.vercel.app/**
-http://localhost:5173/**
-```
+Members can change the temporary password inside the app after logging in. Password reset emails are intentionally not used, so Supabase email rate limits do not block normal development or member onboarding.

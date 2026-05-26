@@ -21,8 +21,8 @@ export const unvotedFilters: UnvotedFilter[] = [
   { key: "bass", label: "삼베", icon: "BA", keys: ["bass"], mode: "anyNone" },
   { key: "devil", label: "앙마", icon: "AG", keys: ["devilGuitar1", "devilGuitar2"], mode: "allNone" },
   { key: "sunny", label: "사니", icon: "SN", keys: ["sunnyGuitar1", "sunnyGuitar2"], mode: "allNone" },
-  { key: "keyboard", label: "슬이", icon: "KY", keys: ["seulKeyboard1", "lilacKeyboard2"], mode: "anyNone" },
-  { key: "chorus", label: "라일락", icon: "CH", keys: ["lilacChorus"], mode: "anyNone" },
+  { key: "keyboard", label: "슬이", icon: "KY", keys: ["seulKeyboard1"], mode: "anyNone" },
+  { key: "chorus", label: "라일락", icon: "CH", keys: ["lilacKeyboard2", "lilacChorus"], mode: "anyNone" },
 ];
 
 const isNone = (votes: RoleVotes, key: RoleVoteKey) => !votes[key] || votes[key] === "NONE";
